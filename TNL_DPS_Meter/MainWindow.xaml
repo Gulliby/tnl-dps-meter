@@ -15,10 +15,10 @@
         ResizeMode="CanResizeWithGrip">
     <Window.Resources>
         <SolidColorBrush x:Key="WindowBackgroundBrush" Color="#4D000000"/>
-        <SolidColorBrush x:Key="TabBackgroundBrush" Color="#AA333333"/>
+        <SolidColorBrush x:Key="TabBackgroundBrush" Color="#333333"/>
         <SolidColorBrush x:Key="SelectedTabBrush" Color="#FF555555"/>
         <SolidColorBrush x:Key="TextBrush" Color="White"/>
-        <SolidColorBrush x:Key="FlashBrush" Color="#AA6633CC"/>
+        <SolidColorBrush x:Key="FlashBrush" Color="#FF9933FF"/>
 
         <Style x:Key="CustomComboBoxStyle" TargetType="ComboBox">
             <Setter Property="Background" Value="{StaticResource TabBackgroundBrush}"/>
@@ -78,11 +78,6 @@
                                                 <Setter Property="Background" Value="Transparent"/>
                                                 <Setter Property="BorderBrush" Value="Transparent"/>
                                                 <Setter Property="Width" Value="12"/>
-                                                <Style.Resources>
-                                                    <SolidColorBrush x:Key="{x:Static SystemColors.ControlBrushKey}" Color="Transparent"/>
-                                                    <SolidColorBrush x:Key="{x:Static SystemColors.ControlLightBrushKey}" Color="{StaticResource TabBackgroundBrush}"/>
-                                                    <SolidColorBrush x:Key="{x:Static SystemColors.ControlDarkBrushKey}" Color="{StaticResource TabBackgroundBrush}"/>
-                                                </Style.Resources>
                                             </Style>
                                         </ScrollViewer.Resources>
                                         <ItemsPresenter/>

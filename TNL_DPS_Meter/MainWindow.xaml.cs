@@ -786,9 +786,9 @@ namespace TNL_DPS_Meter
             // Change to purple
             border.Background = (SolidColorBrush)this.FindResource("FlashBrush");
 
-            // Return to original color after 150ms
+            // Return to original color after 300ms
             var timer = new DispatcherTimer();
-            timer.Interval = TimeSpan.FromMilliseconds(150);
+            timer.Interval = TimeSpan.FromMilliseconds(300);
             timer.Tick += (s, e) =>
             {
                 border.Background = originalBrush;
