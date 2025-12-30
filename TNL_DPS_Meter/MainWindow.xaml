@@ -179,7 +179,8 @@
                              FontWeight="Bold"
                              Foreground="{StaticResource TextBrush}"
                              HorizontalAlignment="Center"/>
-                    <TextBlock Text="Last Combat | DPS"
+                    <TextBlock x:Name="LastCombatTimeText"
+                             Text="Combat Time: 00:00:00:000"
                              FontSize="10"
                              Foreground="#FFAAAAAA"
                              HorizontalAlignment="Center"
@@ -197,7 +198,8 @@
                              FontWeight="Bold"
                              Foreground="{StaticResource TextBrush}"
                              HorizontalAlignment="Center"/>
-                    <TextBlock Text="Overall Damage | DPS"
+                    <TextBlock x:Name="OverallTimeText"
+                             Text="Combat Time: 00:00:00:000"
                              FontSize="10"
                              Foreground="#FFAAAAAA"
                              HorizontalAlignment="Center"
