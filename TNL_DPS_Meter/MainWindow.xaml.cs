@@ -355,10 +355,13 @@ namespace TNL_DPS_Meter
                 // Update ComboBox to show only Last Combat and Overall Damage
                 UpdateCombatHistoryComboBox();
 
-                // Immediately update UI for Last Combat
+                // Immediately update UI for Last Combat and Overall Damage
                 Dispatcher.Invoke(() =>
                 {
                     CurrentCombatText.Text = "0 | 0.0";
+                    LastCombatTimeText.Text = "0:000";
+                    OverallDamageText.Text = "0 | 0.0";
+                    OverallTimeText.Text = "0:000";
                 });
             }
             else if (latestFile == null)
