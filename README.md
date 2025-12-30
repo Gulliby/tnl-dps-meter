@@ -2,8 +2,6 @@
 
 DPS Meter for Throne and Liberty game, written in .NET WPF.
 
-**Latest Version: v2.3** - [Download](https://github.com/Gulliby/tnl-dps-meter/releases/tag/v2.3)
-
 ## Features
 
 - Window always on top of other windows
