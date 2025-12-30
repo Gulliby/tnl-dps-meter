@@ -772,7 +772,7 @@ namespace TNL_DPS_Meter
         private void FlashWindow()
         {
             // Get main window Border
-            var border = (Border)this.Content;
+            var border = (Border)this.FindName("MainBorder");
 
             // Save original color
             var originalBrush = border.Background;

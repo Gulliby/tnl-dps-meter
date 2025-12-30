@@ -15,7 +15,7 @@
         ResizeMode="CanResizeWithGrip">
     <Window.Resources>
         <SolidColorBrush x:Key="WindowBackgroundBrush" Color="#4D000000"/>
-        <SolidColorBrush x:Key="TabBackgroundBrush" Color="#333333"/>
+        <SolidColorBrush x:Key="TabBackgroundBrush" Color="#AA333333"/>
         <SolidColorBrush x:Key="SelectedTabBrush" Color="#FF555555"/>
         <SolidColorBrush x:Key="TextBrush" Color="White"/>
         <SolidColorBrush x:Key="FlashBrush" Color="#FF9933FF"/>
@@ -123,7 +123,8 @@
         </Style>
     </Window.Resources>
 
-    <Border Background="{StaticResource WindowBackgroundBrush}"
+    <Border x:Name="MainBorder"
+            Background="{StaticResource WindowBackgroundBrush}"
             BorderBrush="#FF666666"
             BorderThickness="1"
             CornerRadius="5"
