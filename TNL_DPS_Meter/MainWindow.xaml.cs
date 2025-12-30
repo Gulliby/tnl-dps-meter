@@ -190,6 +190,9 @@ namespace TNL_DPS_Meter
                     // Save previous combat session to history before updating
                     SaveCombatSessionToHistory();
 
+                    // Update combo box immediately to show new historical tab
+                    UpdateCombatHistoryComboBox();
+
                     // Update current Last Combat data
                     _lastCombatDamage = combatData.LastCombatDamage;
                     _lastCombatFirstTime = combatData.LastCombatFirstTime;
@@ -197,8 +200,8 @@ namespace TNL_DPS_Meter
                     _lastCombatGapSeconds = CalculateLastCombatGaps(combatData);
                     _lastCombatEntries = new List<CombatEntry>(combatData.LastCombatEntries);
 
-                    // Update combo box with new combat session
-                    UpdateCombatHistoryComboBox();
+                    // Update UI to show new Last Combat data
+                    ShowLastCombat();
 
                     // Start flash animation
                     FlashWindow();
