@@ -631,14 +631,19 @@ namespace TNL_DPS_Meter
             LastCombatView.Visibility = Visibility.Visible;
             OverallDamageView.Visibility = Visibility.Collapsed;
 
-            // Calculate DPS for historical session
-            var activeTime = Math.Max(session.CombatDuration.TotalSeconds, 0.001); // Avoid division by zero
-            var dps = session.Damage / activeTime;
+            // Calculate DPS for historical session (same logic as ShowLastCombat)
+            double dps = 0;
+            var duration = session.CombatDuration;
+            var activeTimeSeconds = duration.TotalSeconds - session.GapSeconds;
+            if (activeTimeSeconds > 0)
+            {
+                dps = session.Damage / activeTimeSeconds;
+            }
 
             Dispatcher.Invoke(() =>
             {
                 CurrentCombatText.Text = $"{FormatNumber(session.Damage)} | {FormatDps(dps)}";
-                LastCombatTimeText.Text = $"Combat Time: {session.CombatDuration:hh\\:mm\\:ss\\:fff}";
+                LastCombatTimeText.Text = $"{TimeSpan.FromSeconds(activeTimeSeconds):hh\\:mm\\:ss\\:fff}";
             });
         }
 
@@ -671,6 +676,7 @@ namespace TNL_DPS_Meter
                     Damage = _lastCombatDamage,
                     StartTime = _lastCombatFirstTime,
                     EndTime = _lastCombatLastTime,
+                    GapSeconds = _lastCombatGapSeconds,
                     Entries = new List<CombatEntry>(_lastCombatEntries)
                 };
 
@@ -753,6 +759,7 @@ namespace TNL_DPS_Meter
             public DateTime StartTime { get; set; }
             public DateTime EndTime { get; set; }
             public TimeSpan CombatDuration => EndTime - StartTime;
+            public double GapSeconds { get; set; }
             public List<CombatEntry> Entries { get; set; } = new List<CombatEntry>();
         }
 
