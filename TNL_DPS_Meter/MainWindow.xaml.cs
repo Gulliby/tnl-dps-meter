@@ -214,6 +214,12 @@ namespace TNL_DPS_Meter
                 // Update combo box immediately to show new historical tab
                 UpdateCombatHistoryComboBox();
 
+                // Flash animation when new tab is created
+                if (_combatHistory.Count > 0) // Only flash if we actually added a new tab
+                {
+                    FlashWindow();
+                }
+
                 // Update current Last Combat data
                 _lastCombatDamage = combatData.LastCombatDamage;
                 _lastCombatFirstTime = combatData.LastCombatFirstTime;
@@ -242,9 +248,6 @@ namespace TNL_DPS_Meter
                     // New combat started after pause >= 8 seconds
                     _combatStartTime = DateTime.Now;
                     _currentCombatDamage = 0;
-
-                    // Flash animation for new combat
-                    FlashWindow();
                 }
 
                 // Update current combat damage
