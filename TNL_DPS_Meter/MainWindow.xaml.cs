@@ -271,7 +271,7 @@ namespace TNL_DPS_Meter
                     var combatTime = _lastCombatLastTime - _lastCombatFirstTime;
                     var activeTime = combatTime.TotalSeconds - _lastCombatGapSeconds;
                     var timeSpan = TimeSpan.FromSeconds(activeTime);
-                    LastCombatTimeText.Text = $"Combat Time: {timeSpan:hh\\:mm\\:ss\\:fff}";
+                    LastCombatTimeText.Text = $"{timeSpan:hh\\:mm\\:ss\\:fff}";
                 }
 
                 // Overall Damage
@@ -281,7 +281,7 @@ namespace TNL_DPS_Meter
                     var totalTime = combatData.LastActionTime - _firstLogEntryTime;
                     var activeTime = totalTime.TotalSeconds - _overallGapSeconds;
                     var timeSpan = TimeSpan.FromSeconds(activeTime);
-                    OverallTimeText.Text = $"Combat Time: {timeSpan:hh\\:mm\\:ss\\:fff}";
+                    OverallTimeText.Text = $"{timeSpan:hh\\:mm\\:ss\\:fff}";
                 }
 
                 FileInfoText.Text = _currentLogFileName;
@@ -609,7 +609,7 @@ namespace TNL_DPS_Meter
                 {
                     var activeTime = (_lastCombatLastTime - _lastCombatFirstTime).TotalSeconds - _lastCombatGapSeconds;
                     var timeSpan = TimeSpan.FromSeconds(activeTime);
-                    LastCombatTimeText.Text = $"Combat Time: {timeSpan:hh\\:mm\\:ss\\:fff}";
+                    LastCombatTimeText.Text = $"{timeSpan:hh\\:mm\\:ss\\:fff}";
                 }
             });
         }

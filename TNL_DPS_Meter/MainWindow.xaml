@@ -180,8 +180,8 @@
                              Foreground="{StaticResource TextBrush}"
                              HorizontalAlignment="Center"/>
                     <TextBlock x:Name="LastCombatTimeText"
-                             Text="Combat Time: 00:00:00:000"
-                             FontSize="10"
+                             Text="00:00:00:000"
+                             FontSize="12"
                              Foreground="#FFAAAAAA"
                              HorizontalAlignment="Center"
                              Margin="0,5,0,0"/>
@@ -199,8 +199,8 @@
                              Foreground="{StaticResource TextBrush}"
                              HorizontalAlignment="Center"/>
                     <TextBlock x:Name="OverallTimeText"
-                             Text="Combat Time: 00:00:00:000"
-                             FontSize="10"
+                             Text="00:00:00:000"
+                             FontSize="12"
                              Foreground="#FFAAAAAA"
                              HorizontalAlignment="Center"
                              Margin="0,5,0,0"/>
