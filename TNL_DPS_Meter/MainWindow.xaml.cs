@@ -59,6 +59,31 @@ namespace TNL_DPS_Meter
             return $"{dps:N1}";
         }
 
+        private string FormatTimeSpan(TimeSpan timeSpan)
+        {
+            var parts = new List<string>();
+
+            // Add hours only if > 0
+            if (timeSpan.Hours > 0)
+            {
+                parts.Add($"{timeSpan.Hours:D2}");
+            }
+
+            // Add minutes only if hours > 0 or minutes > 0
+            if (timeSpan.Hours > 0 || timeSpan.Minutes > 0)
+            {
+                parts.Add($"{timeSpan.Minutes:D2}");
+            }
+
+            // Always add seconds
+            parts.Add($"{timeSpan.Seconds:D2}");
+
+            // Always add milliseconds
+            parts.Add($"{timeSpan.Milliseconds:D3}");
+
+            return string.Join(":", parts);
+        }
+
         public MainWindow()
         {
             InitializeComponent();
@@ -280,7 +305,7 @@ namespace TNL_DPS_Meter
                         var combatTime = _lastCombatLastTime - _lastCombatFirstTime;
                         var activeTime = combatTime.TotalSeconds - _lastCombatGapSeconds;
                         var timeSpan = TimeSpan.FromSeconds(activeTime);
-                        LastCombatTimeText.Text = $"{timeSpan:hh\\:mm\\:ss\\:fff}";
+                        LastCombatTimeText.Text = FormatTimeSpan(timeSpan);
                     }
                 }
                 else if (_currentView == "Overall Damage")
@@ -292,7 +317,7 @@ namespace TNL_DPS_Meter
                         var totalTime = combatData.LastActionTime - _firstLogEntryTime;
                         var activeTime = totalTime.TotalSeconds - _overallGapSeconds;
                         var timeSpan = TimeSpan.FromSeconds(activeTime);
-                        OverallTimeText.Text = $"{timeSpan:hh\\:mm\\:ss\\:fff}";
+                        OverallTimeText.Text = FormatTimeSpan(timeSpan);
                     }
                 }
                 // Historical combat views don't update automatically - they show fixed data
@@ -625,7 +650,7 @@ namespace TNL_DPS_Meter
                 {
                     var activeTime = (_lastCombatLastTime - _lastCombatFirstTime).TotalSeconds - _lastCombatGapSeconds;
                     var timeSpan = TimeSpan.FromSeconds(activeTime);
-                    LastCombatTimeText.Text = $"{timeSpan:hh\\:mm\\:ss\\:fff}";
+                    LastCombatTimeText.Text = FormatTimeSpan(timeSpan);
                 }
             });
         }
@@ -656,7 +681,7 @@ namespace TNL_DPS_Meter
             Dispatcher.Invoke(() =>
             {
                 CurrentCombatText.Text = $"{FormatNumber(session.Damage)} | {FormatDps(dps)}";
-                LastCombatTimeText.Text = $"{TimeSpan.FromSeconds(activeTimeSeconds):hh\\:mm\\:ss\\:fff}";
+                LastCombatTimeText.Text = FormatTimeSpan(TimeSpan.FromSeconds(activeTimeSeconds));
             });
         }
 
