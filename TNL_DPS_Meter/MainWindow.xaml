@@ -71,7 +71,8 @@
                                         BorderBrush="#FF666666"
                                         BorderThickness="1"
                                         CornerRadius="3">
-                                    <ScrollViewer>
+                                    <ScrollViewer MaxHeight="120"
+                                                  VerticalScrollBarVisibility="Auto">
                                         <ItemsPresenter/>
                                     </ScrollViewer>
                                 </Border>
@@ -146,8 +147,6 @@
                              Width="140"
                              Height="20"
                              FontSize="9"
-                             MaxDropDownHeight="120"
-                             ScrollViewer.VerticalScrollBarVisibility="Auto"
                              Style="{StaticResource CustomComboBoxStyle}"
                              ItemContainerStyle="{StaticResource CustomComboBoxItemStyle}"
                              SelectionChanged="ViewSelector_SelectionChanged">
