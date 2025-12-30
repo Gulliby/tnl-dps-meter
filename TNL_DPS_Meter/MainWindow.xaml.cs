@@ -668,6 +668,48 @@ namespace TNL_DPS_Meter
             OverallDamageView.Visibility = Visibility.Visible;
         }
 
+        private string ShortenNameIfNeeded(string fullName)
+        {
+            // If name is null or empty, return as is
+            if (string.IsNullOrEmpty(fullName))
+                return fullName;
+
+            // If name is already 18 characters or less, return as is
+            if (fullName.Length <= 18)
+                return fullName;
+
+            // Split by spaces
+            var parts = fullName.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+
+            // If 2 parts or less, return original (don't shorten)
+            if (parts.Length <= 2)
+                return fullName;
+
+            // Shorten all parts except the last one
+            var shortenedParts = new List<string>();
+            for (int i = 0; i < parts.Length - 1; i++)
+            {
+                if (!string.IsNullOrEmpty(parts[i]) && parts[i].Length > 0)
+                {
+                    shortenedParts.Add(parts[i][0] + ".");
+                }
+            }
+
+            // Add the last part as is
+            shortenedParts.Add(parts[parts.Length - 1]);
+
+            // Join back
+            var result = string.Join(" ", shortenedParts);
+
+            // If still too long, truncate to 15 chars + "..."
+            if (result.Length > 18)
+            {
+                result = result.Substring(0, System.Math.Min(15, result.Length)) + "...";
+            }
+
+            return result;
+        }
+
         private void ShowHistoricalCombat(CombatSession session)
         {
             if (LastCombatView == null || CurrentCombatText == null || LastCombatTimeText == null)
@@ -711,17 +753,20 @@ namespace TNL_DPS_Meter
 
                 string mostFrequentTarget = targetGroups.FirstOrDefault()?.Key ?? "Unknown";
 
+                // Shorten the target name if needed
+                string shortenedTarget = ShortenNameIfNeeded(mostFrequentTarget);
+
                 // Find the highest number used for this target name
                 var existingNumbers = _combatHistory
-                    .Where(s => s.TargetName.StartsWith(mostFrequentTarget + " ("))
+                    .Where(s => s.TargetName.StartsWith(shortenedTarget + " ("))
                     .Select(s => {
-                        var match = System.Text.RegularExpressions.Regex.Match(s.TargetName, $@"^{System.Text.RegularExpressions.Regex.Escape(mostFrequentTarget)}\s*\((\d+)\)$");
+                        var match = System.Text.RegularExpressions.Regex.Match(s.TargetName, $@"^{System.Text.RegularExpressions.Regex.Escape(shortenedTarget)}\s*\((\d+)\)$");
                         return match.Success ? int.Parse(match.Groups[1].Value) : 0;
                     })
                     .ToList();
 
                 int nextNumber = existingNumbers.Count > 0 ? existingNumbers.Max() + 1 : 1;
-                string sessionName = $"{mostFrequentTarget} ({nextNumber})";
+                string sessionName = $"{shortenedTarget} ({nextNumber})";
 
                 var session = new CombatSession
                 {

@@ -59,7 +59,7 @@
                             </Border>
 
                             <Popup x:Name="Popup"
-                                   Placement="Bottom"
+                                   Placement="Top"
                                    IsOpen="{TemplateBinding IsDropDownOpen}"
                                    AllowsTransparency="True"
                                    Focusable="False"
@@ -72,7 +72,8 @@
                                         BorderThickness="1"
                                         CornerRadius="3">
                                     <ScrollViewer MaxHeight="120"
-                                                  VerticalScrollBarVisibility="Auto">
+                                                  VerticalScrollBarVisibility="Auto"
+                                                  HorizontalScrollBarVisibility="Disabled">
                                         <ScrollViewer.Resources>
                                             <Style TargetType="ScrollBar">
                                                 <Setter Property="Background" Value="Transparent"/>
