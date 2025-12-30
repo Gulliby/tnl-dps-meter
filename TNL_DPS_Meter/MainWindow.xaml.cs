@@ -208,32 +208,23 @@ namespace TNL_DPS_Meter
             // Save data for Last Combat
             if (combatData.LastCombatDamage > 0)
             {
-            // Check if new combat started (new activity after pause > 8 seconds)
-            bool hasNewCombatData = hasNewActivity && !_isInCombat && !(DateTime.Now - _lastLogEntryTime > TimeSpan.FromSeconds(8));
+                // Save previous combat session to history before updating
+                SaveCombatSessionToHistory();
 
-                if (hasNewCombatData)
+                // Update combo box immediately to show new historical tab
+                UpdateCombatHistoryComboBox();
+
+                // Update current Last Combat data
+                _lastCombatDamage = combatData.LastCombatDamage;
+                _lastCombatFirstTime = combatData.LastCombatFirstTime;
+                _lastCombatLastTime = combatData.LastCombatLastTime;
+                _lastCombatGapSeconds = CalculateLastCombatGaps(combatData);
+                _lastCombatEntries = new List<CombatEntry>(combatData.LastCombatEntries);
+
+                // Update UI to show new Last Combat data (only if Last Combat is selected)
+                if (_currentView == "Last Combat")
                 {
-                    // Save previous combat session to history before updating
-                    SaveCombatSessionToHistory();
-
-                    // Update combo box immediately to show new historical tab
-                    UpdateCombatHistoryComboBox();
-
-                    // Update current Last Combat data
-                    _lastCombatDamage = combatData.LastCombatDamage;
-                    _lastCombatFirstTime = combatData.LastCombatFirstTime;
-                    _lastCombatLastTime = combatData.LastCombatLastTime;
-                    _lastCombatGapSeconds = CalculateLastCombatGaps(combatData);
-                    _lastCombatEntries = new List<CombatEntry>(combatData.LastCombatEntries);
-
-                    // Update UI to show new Last Combat data (only if Last Combat is selected)
-                    if (_currentView == "Last Combat")
-                    {
-                        ShowLastCombat();
-                    }
-
-                    // Start flash animation
-                    FlashWindow();
+                    ShowLastCombat();
                 }
             }
             }
@@ -251,6 +242,9 @@ namespace TNL_DPS_Meter
                     // New combat started after pause
                     _combatStartTime = DateTime.Now;
                     _currentCombatDamage = 0;
+
+                    // Flash animation for new combat
+                    FlashWindow();
                 }
 
                 // Update current combat damage
