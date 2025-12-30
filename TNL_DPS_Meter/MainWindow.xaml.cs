@@ -37,6 +37,7 @@ namespace TNL_DPS_Meter
         private double _lastCombatGapSeconds;
         private List<CombatEntry> _lastCombatEntries = new List<CombatEntry>();
         private List<CombatSession> _combatHistory = new List<CombatSession>();
+        private string _currentView = "Last Combat"; // Track current selected view
 
         private string FormatNumber(long number)
         {
@@ -200,8 +201,11 @@ namespace TNL_DPS_Meter
                     _lastCombatGapSeconds = CalculateLastCombatGaps(combatData);
                     _lastCombatEntries = new List<CombatEntry>(combatData.LastCombatEntries);
 
-                    // Update UI to show new Last Combat data
-                    ShowLastCombat();
+                    // Update UI to show new Last Combat data (only if Last Combat is selected)
+                    if (_currentView == "Last Combat")
+                    {
+                        ShowLastCombat();
+                    }
 
                     // Start flash animation
                     FlashWindow();
@@ -264,28 +268,34 @@ namespace TNL_DPS_Meter
                 }
             }
 
-            // Update UI
+            // Update UI only for currently selected view
             Dispatcher.Invoke(() =>
             {
-                // Last Combat
-                CurrentCombatText.Text = $"{FormatNumber(_lastCombatDamage)} | {FormatDps(lastCombatDps)}";
-                if (_lastCombatFirstTime != DateTime.MinValue && _lastCombatLastTime != DateTime.MinValue)
+                if (_currentView == "Last Combat")
                 {
-                    var combatTime = _lastCombatLastTime - _lastCombatFirstTime;
-                    var activeTime = combatTime.TotalSeconds - _lastCombatGapSeconds;
-                    var timeSpan = TimeSpan.FromSeconds(activeTime);
-                    LastCombatTimeText.Text = $"{timeSpan:hh\\:mm\\:ss\\:fff}";
+                    // Update Last Combat display
+                    CurrentCombatText.Text = $"{FormatNumber(_lastCombatDamage)} | {FormatDps(lastCombatDps)}";
+                    if (_lastCombatFirstTime != DateTime.MinValue && _lastCombatLastTime != DateTime.MinValue)
+                    {
+                        var combatTime = _lastCombatLastTime - _lastCombatFirstTime;
+                        var activeTime = combatTime.TotalSeconds - _lastCombatGapSeconds;
+                        var timeSpan = TimeSpan.FromSeconds(activeTime);
+                        LastCombatTimeText.Text = $"{timeSpan:hh\\:mm\\:ss\\:fff}";
+                    }
                 }
-
-                // Overall Damage
-                OverallDamageText.Text = $"{FormatNumber(_totalDamage)} | {FormatDps(overallDps)}";
-                if (_firstLogEntryTime != DateTime.MinValue && combatData.LastActionTime != DateTime.MinValue)
+                else if (_currentView == "Overall Damage")
                 {
-                    var totalTime = combatData.LastActionTime - _firstLogEntryTime;
-                    var activeTime = totalTime.TotalSeconds - _overallGapSeconds;
-                    var timeSpan = TimeSpan.FromSeconds(activeTime);
-                    OverallTimeText.Text = $"{timeSpan:hh\\:mm\\:ss\\:fff}";
+                    // Update Overall Damage display
+                    OverallDamageText.Text = $"{FormatNumber(_totalDamage)} | {FormatDps(overallDps)}";
+                    if (_firstLogEntryTime != DateTime.MinValue && combatData.LastActionTime != DateTime.MinValue)
+                    {
+                        var totalTime = combatData.LastActionTime - _firstLogEntryTime;
+                        var activeTime = totalTime.TotalSeconds - _overallGapSeconds;
+                        var timeSpan = TimeSpan.FromSeconds(activeTime);
+                        OverallTimeText.Text = $"{timeSpan:hh\\:mm\\:ss\\:fff}";
+                    }
                 }
+                // Historical combat views don't update automatically - they show fixed data
 
                 FileInfoText.Text = _currentLogFileName;
             });
@@ -570,15 +580,18 @@ namespace TNL_DPS_Meter
 
             if (selectedView.Contains("Last Combat"))
             {
+                _currentView = "Last Combat";
                 ShowLastCombat();
             }
             else if (selectedView.Contains("Overall Damage"))
             {
+                _currentView = "Overall Damage";
                 ShowOverallDamage();
             }
             else
             {
                 // Show historical combat data
+                _currentView = selectedView;
                 var session = _combatHistory.FirstOrDefault(s => s.TargetName == selectedView);
                 if (session != null)
                 {
