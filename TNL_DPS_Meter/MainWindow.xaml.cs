@@ -714,15 +714,17 @@ namespace TNL_DPS_Meter
 
                 string mostFrequentTarget = targetGroups.FirstOrDefault()?.Key ?? "Unknown";
 
-                // Count existing sessions with the same base target name
-                var existingSessions = _combatHistory
-                    .Where(s => s.TargetName.StartsWith(mostFrequentTarget + " (") || s.TargetName == mostFrequentTarget)
+                // Find the highest number used for this target name
+                var existingNumbers = _combatHistory
+                    .Where(s => s.TargetName.StartsWith(mostFrequentTarget + " ("))
+                    .Select(s => {
+                        var match = System.Text.RegularExpressions.Regex.Match(s.TargetName, $@"^{System.Text.RegularExpressions.Regex.Escape(mostFrequentTarget)}\s*\((\d+)\)$");
+                        return match.Success ? int.Parse(match.Groups[1].Value) : 0;
+                    })
                     .ToList();
 
-                int nextNumber = existingSessions.Count + 1;
-                string sessionName = existingSessions.Count == 0
-                    ? $"{mostFrequentTarget} (1)"
-                    : $"{mostFrequentTarget} ({nextNumber})";
+                int nextNumber = existingNumbers.Count > 0 ? existingNumbers.Max() + 1 : 1;
+                string sessionName = $"{mostFrequentTarget} ({nextNumber})";
 
                 var session = new CombatSession
                 {
