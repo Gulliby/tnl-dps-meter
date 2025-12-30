@@ -700,6 +700,12 @@ namespace TNL_DPS_Meter
         {
             if (_lastCombatDamage > 0 && _lastCombatFirstTime != DateTime.MinValue && _lastCombatEntries.Count > 0)
             {
+                // Check if we already have a session with the same damage and start time (prevent duplicates)
+                if (_combatHistory.Any(s => s.Damage == _lastCombatDamage && s.StartTime == _lastCombatFirstTime))
+                {
+                    return; // Skip creating duplicate session
+                }
+
                 // Find most frequent target name
                 var targetGroups = _lastCombatEntries
                     .GroupBy(e => e.TargetName)
