@@ -1,0 +1,89 @@
+# TNL DPS Meter
+
+DPS Meter for Throne and Liberty game, written in .NET WPF.
+
+## Features
+
+- Window always on top of other windows
+- No standard window title bar - clean interface
+- Window dragging from any area
+- Compact size (266x130px) and high transparency (30% opacity) for minimal distraction
+- Real-time DPS display
+- Shortened display of large numbers (8905 → 8.9k, 3966236 → 3966.2k)
+- Display mode selection: Last Combat or Overall Damage
+- Close button (×) in the top right corner
+- Auto-hide interface - tab headers and footer hide when mouse leaves, DPS data remains visible
+- Flash effect - window flashes purple when new Last Combat data appears
+- Dropdown list - mouse hover shows menu for display mode selection
+- Current log file name display in the bottom
+- Log reading from `%LOCALAPPDATA%\TL\SAVED\COMBATLOGS` folder
+- Overall Damage: shows statistics for the entire file from first to last record, excluding pauses > 10 seconds
+- Last Combat: shows statistics for the last set of new data in the log file, excluding pauses > 10 seconds
+
+## Installation and Launch
+
+1. Ensure you have .NET 7.0 or higher installed
+2. Clone the repository
+3. Run the application using one of the methods:
+
+   **Method 1: Via command line**
+   ```bash
+   cd TNL_DPS_Meter
+   dotnet run
+   ```
+
+   **Method 2: Via .bat file (Windows)**
+   ```bash
+   run_dps_meter.bat
+   ```
+
+## Log Format
+
+The application reads files from the `%LOCALAPPDATA%\TL\SAVED\COMBATLOGS\` folder.
+
+### Supported Format:
+
+**Throne and Liberty CSV Format (CombatLogVersion,4)**
+```
+CombatLogVersion,4
+{Date},DamageDone,{AbilityName},{ServerTick},{DamageDoneByAbilityHit},...
+```
+
+Example:
+```
+CombatLogVersion,4
+20251229-01:37:18:962,DamageDone,Basic Shot,947581240,646,1,0,kMaxDamageByCriticalDecision,gulli,Practice Dummy
+20251229-01:37:19:158,DamageDone,Basic Shot,947515856,978,0,1,kNormalHit,gulli,Practice Dummy
+```
+
+**Field format (only first 5 are important):**
+- `{Date}`: YYYYMMDD-HH:MM:SS:MS (timestamp)
+- `DamageDone`: constant (event type)
+- `{AbilityName}`: ability name
+- `{ServerTick}`: internal server tick
+- `{DamageDoneByAbilityHit}`: **DAMAGE AMOUNT** (key parameter for DPS)
+
+**All fields after DamageDoneByAbilityHit are ignored** (critical hits, hit types, names, etc.)
+
+### File Names:
+- Expected format: `TLCombatLog-YYYYMMDD_HHMMSS.txt`
+- Example: `TLCombatLog-251229_013714.txt`
+
+## Controls
+
+- Window dragging from any area
+- Close button (×) to exit
+
+## Development
+
+The project uses:
+- .NET 7.0 WPF
+- Two DispatcherTimer instances:
+  - Reading data from current file every 200ms
+  - Checking for new files every 10 seconds
+- Log parsing with combat activity detection (pause > 8 seconds = combat end)
+- DPS calculation excluding pauses > 10 seconds between records for both modes
+
+## Testing
+
+For testing, create test files in the `%LOCALAPPDATA%\TL\SAVED\COMBATLOGS\` folder with data in the specified format.
