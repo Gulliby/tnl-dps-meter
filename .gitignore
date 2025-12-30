@@ -1,0 +1,19 @@
+# Build outputs
+TNL_DPS_Meter/bin/
+TNL_DPS_Meter/obj/
+*.exe
+*.dll
+*.pdb
+*.zip
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# Logs
+*.log
