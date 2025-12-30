@@ -18,7 +18,7 @@
         <SolidColorBrush x:Key="TabBackgroundBrush" Color="#AA333333"/>
         <SolidColorBrush x:Key="SelectedTabBrush" Color="#FF555555"/>
         <SolidColorBrush x:Key="TextBrush" Color="White"/>
-        <SolidColorBrush x:Key="FlashBrush" Color="#FFFF00FF"/>
+        <SolidColorBrush x:Key="FlashBrush" Color="#FFAA00FF"/>
 
         <Style x:Key="CustomComboBoxStyle" TargetType="ComboBox">
             <Setter Property="Background" Value="{StaticResource TabBackgroundBrush}"/>
