@@ -237,9 +237,9 @@ namespace TNL_DPS_Meter
             // Current Combat logic: new combat starts with new activity after pause > 8 sec
             if (hasNewActivity)
             {
-                if (!wasInCombat && !_isInCombat)
+                if (!wasInCombat && timeSinceLastEntry.TotalSeconds >= 8)
                 {
-                    // New combat started after pause
+                    // New combat started after pause >= 8 seconds
                     _combatStartTime = DateTime.Now;
                     _currentCombatDamage = 0;
 
@@ -350,8 +350,8 @@ namespace TNL_DPS_Meter
                 UpdateCombatHistoryComboBox();
 
                 // Immediately update UI for Last Combat and Overall Damage
-                Dispatcher.Invoke(() =>
-                {
+            Dispatcher.Invoke(() =>
+            {
                     CurrentCombatText.Text = "0 | 0.0";
                     LastCombatTimeText.Text = "0:000";
                     OverallDamageText.Text = "0 | 0.0";
@@ -616,9 +616,9 @@ namespace TNL_DPS_Meter
             {
                 _currentView = "Overall Damage";
                 ShowOverallDamage();
-            }
-            else
-            {
+                                    }
+                                    else
+                                    {
                 // Show historical combat data
                 _currentView = selectedView;
                 var session = _combatHistory.FirstOrDefault(s => s.TargetName == selectedView);
@@ -780,9 +780,9 @@ namespace TNL_DPS_Meter
             // Change to purple
             border.Background = (SolidColorBrush)this.FindResource("FlashBrush");
 
-            // Return to original color after 300ms
+            // Return to original color after 500ms
             var timer = new DispatcherTimer();
-            timer.Interval = TimeSpan.FromMilliseconds(300);
+            timer.Interval = TimeSpan.FromMilliseconds(500);
             timer.Tick += (s, e) =>
             {
                 border.Background = originalBrush;
