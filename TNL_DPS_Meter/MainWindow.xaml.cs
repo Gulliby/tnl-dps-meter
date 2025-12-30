@@ -348,6 +348,13 @@ namespace TNL_DPS_Meter
                 _lastCombatGapSeconds = 0;
                 _lastCombatEntries.Clear();
 
+                // Clear combat history when switching to new log file
+                _combatHistory.Clear();
+                _currentView = "Last Combat";
+
+                // Update ComboBox to show only Last Combat and Overall Damage
+                UpdateCombatHistoryComboBox();
+
                 // Immediately update UI for Last Combat
                 Dispatcher.Invoke(() =>
                 {
