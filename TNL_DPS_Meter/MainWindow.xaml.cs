@@ -208,8 +208,8 @@ namespace TNL_DPS_Meter
             // Save data for Last Combat
             if (combatData.LastCombatDamage > 0)
             {
-                // Check if new data appeared (not equal to previous)
-                bool hasNewCombatData = (combatData.LastCombatDamage != _lastCombatDamage);
+            // Check if new combat started (new activity after pause > 8 seconds)
+            bool hasNewCombatData = hasNewActivity && !_isInCombat && !(DateTime.Now - _lastLogEntryTime > TimeSpan.FromSeconds(8));
 
                 if (hasNewCombatData)
                 {
