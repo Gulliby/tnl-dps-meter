@@ -2,6 +2,15 @@
 
 DPS Meter for Throne and Liberty game, written in .NET WPF.
 
+## Version 3.0 - UI Improvements & Code Cleanup
+
+### What's New in v3.0:
+- **Modern Entry Point**: Removed App.xaml/App.xaml.cs, now using MainWindow as direct entry point
+- **Enhanced Damage Breakdown Window**: Sleek, transparent header matching MainWindow style
+- **Improved Table Styling**: Compact, professional-looking data grid headers
+- **UI Consistency**: Unified styling across all windows with thin, elegant headers
+- **Code Cleanup**: Simplified project structure and removed unnecessary files
+
 ## Features
 
 - Window always on top of other windows
@@ -22,6 +31,8 @@ DPS Meter for Throne and Liberty game, written in .NET WPF.
 - Overall Damage: shows statistics for the entire file from first to last record, excluding pauses > 10 seconds
 - Last Combat: shows statistics for the last set of new data in the log file, excluding pauses > 10 seconds
 - Combat History: saved sessions with target names and automatic naming
+- **Damage Breakdown Window**: Professional damage analysis with sleek, modern UI
+- **Unified Styling**: Consistent thin, transparent headers across all windows
 
 ## Installation and Launch
 
@@ -85,7 +96,8 @@ CombatLogVersion,4
 ## Development
 
 The project uses:
-- .NET 7.0 WPF
+- .NET 7.0 WPF with modern entry point (MainWindow as startup object)
+- Clean architecture without App.xaml/App.xaml.cs boilerplate
 - Two DispatcherTimer instances:
   - Reading data from current file every 200ms
   - Checking for new files every 10 seconds
@@ -93,7 +105,8 @@ The project uses:
 - Combat activity detection (pause > 8 seconds = combat end)
 - Combat time calculation excluding pauses > 10 seconds between records
 - Automatic combat session history with target-based naming
-- Dynamic UI with auto-hide interface and custom styling
+- Dynamic UI with auto-hide interface and unified modern styling
+- Professional-looking Damage Breakdown window with consistent design
 
 ## Testing
 
