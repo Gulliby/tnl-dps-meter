@@ -1,10 +1,9 @@
 using System;
 using System.Collections.ObjectModel;
-using System.ComponentModel;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
+using TNL_DPS_Meter.Models;
 
 namespace TNL_DPS_Meter
 {
@@ -36,7 +35,7 @@ namespace TNL_DPS_Meter
             System.Diagnostics.Debug.WriteLine($"DamageBreakdownWindow: Data items count: {AbilityDamageList.Count}");
         }
 
-        public void SetDamageData(System.Collections.Generic.List<MainWindow.CombatEntry> entries)
+        public void SetDamageData(System.Collections.Generic.List<CombatEntry> entries)
         {
             AbilityDamageList.Clear();
 
@@ -94,69 +93,4 @@ namespace TNL_DPS_Meter
         }
     }
 
-    public class AbilityDamageInfo : INotifyPropertyChanged
-    {
-        private int _number;
-        private string _abilityName = "";
-        private long _damageDoneByAbility;
-        private int _numberOfHits;
-        private double _damagePercentage;
-
-        public int Number
-        {
-            get => _number;
-            set
-            {
-                _number = value;
-                OnPropertyChanged(nameof(Number));
-            }
-        }
-
-        public string AbilityName
-        {
-            get => _abilityName;
-            set
-            {
-                _abilityName = value;
-                OnPropertyChanged(nameof(AbilityName));
-            }
-        }
-
-        public long DamageDoneByAbility
-        {
-            get => _damageDoneByAbility;
-            set
-            {
-                _damageDoneByAbility = value;
-                OnPropertyChanged(nameof(DamageDoneByAbility));
-            }
-        }
-
-        public int NumberOfHits
-        {
-            get => _numberOfHits;
-            set
-            {
-                _numberOfHits = value;
-                OnPropertyChanged(nameof(NumberOfHits));
-            }
-        }
-
-        public double DamagePercentage
-        {
-            get => _damagePercentage;
-            set
-            {
-                _damagePercentage = value;
-                OnPropertyChanged(nameof(DamagePercentage));
-            }
-        }
-
-        public event PropertyChangedEventHandler? PropertyChanged;
-
-        protected virtual void OnPropertyChanged(string propertyName)
-        {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-        }
-    }
 }

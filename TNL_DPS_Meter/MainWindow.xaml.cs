@@ -1,14 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
+using TNL_DPS_Meter.Core;
+using TNL_DPS_Meter.Models;
+using TNL_DPS_Meter.Services;
+using TNL_DPS_Meter.Services.Interfaces;
 
 namespace TNL_DPS_Meter
 {
@@ -17,72 +19,27 @@ namespace TNL_DPS_Meter
     /// </summary>
     public partial class MainWindow : Window
     {
+        // Services
+        private readonly ICombatLogParserService _logParserService;
+        private readonly ICombatCalculatorService _calculatorService;
+        private readonly IFileMonitorService _fileMonitorService;
+        private readonly ICombatTrackerService _combatTrackerService;
+
+        // Timers
         private DispatcherTimer _updateTimer;
         private DispatcherTimer _fileCheckTimer;
-        private string _combatLogPath;
+
+        // File monitoring
         private string _currentLogFileName;
         private string? _currentLogFilePath;
-        private DateTime _combatStartTime;
-        private DateTime _overallStartTime;
-        private long _currentCombatDamage;
-        private long _totalDamage;
-        private bool _isInCombat;
         private DateTime _lastLogEntryTime;
         private DateTime _firstLogEntryTime;
         private double _overallGapSeconds;
         private int _lastProcessedLineCount;
-        private long _lastCombatDamage;
-        private DateTime _lastCombatFirstTime;
-        private DateTime _lastCombatLastTime;
-        private double _lastCombatGapSeconds;
-        private List<CombatEntry> _lastCombatEntries = new List<CombatEntry>();
-        private List<CombatSession> _combatHistory = new List<CombatSession>();
-        private string _currentView = "Last Combat"; // Track current selected view
 
-        private string FormatNumber(long number)
-        {
-            if (number >= 1000)
-            {
-                double value = number / 1000.0;
-                return $"{value:N1}k";
-            }
-            return number.ToString();
-        }
+        // UI state
+        private string _currentView = Constants.ViewNames.LastCombat;
 
-        private string FormatDps(double dps)
-        {
-            if (dps >= 1000)
-            {
-                double value = dps / 1000.0;
-                return $"{value:N1}k";
-            }
-            return $"{dps:N1}";
-        }
-
-        private string FormatTimeSpan(TimeSpan timeSpan)
-        {
-            var parts = new List<string>();
-
-            // Add hours only if > 0
-            if (timeSpan.Hours > 0)
-            {
-                parts.Add($"{timeSpan.Hours:D2}");
-            }
-
-            // Add minutes only if hours > 0 or minutes > 0
-            if (timeSpan.Hours > 0 || timeSpan.Minutes > 0)
-            {
-                parts.Add($"{timeSpan.Minutes:D2}");
-            }
-
-            // Always add seconds
-            parts.Add($"{timeSpan.Seconds:D2}");
-
-            // Always add milliseconds
-            parts.Add($"{timeSpan.Milliseconds:D3}");
-
-            return string.Join(":", parts);
-        }
 
         [STAThread]
         public static void Main()
@@ -93,39 +50,32 @@ namespace TNL_DPS_Meter
 
         public MainWindow()
         {
-            InitializeComponent();
+            // Initialize services
+            _calculatorService = new CombatCalculatorService();
+            _logParserService = new CombatLogParserService();
+            _fileMonitorService = new FileMonitorService();
+            _combatTrackerService = new CombatTrackerService(_calculatorService);
 
-            // Set combat log path - always from game folder
-            _combatLogPath = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "TL", "SAVED", "COMBATLOGS");
+            InitializeComponent();
 
             // Timer for reading file and updating DPS every 200ms
             _updateTimer = new DispatcherTimer();
-            _updateTimer.Interval = TimeSpan.FromMilliseconds(200);
+            _updateTimer.Interval = TimeSpan.FromMilliseconds(Constants.Timers.UpdateIntervalMs);
             _updateTimer.Tick += UpdateTimer_Tick;
             _updateTimer.Start();
 
             // Timer for checking new files every 10 seconds
             _fileCheckTimer = new DispatcherTimer();
-            _fileCheckTimer.Interval = TimeSpan.FromSeconds(10);
+            _fileCheckTimer.Interval = TimeSpan.FromMilliseconds(Constants.Timers.FileCheckIntervalMs);
             _fileCheckTimer.Tick += FileCheckTimer_Tick;
             _fileCheckTimer.Start();
 
-            // Window drag handler
-            //this.MouseLeftButtonDown += (s, e) => DragMove();
-
-            InitializeCombatTracking();
-            _overallStartTime = DateTime.MinValue; // Will be initialized on first log read
+            // Initialize state
+            _combatTrackerService.Initialize();
             _lastLogEntryTime = DateTime.MinValue;
             _firstLogEntryTime = DateTime.MinValue;
             _overallGapSeconds = 0;
             _lastProcessedLineCount = 0;
-            _lastCombatDamage = 0;
-            _lastCombatFirstTime = DateTime.MinValue;
-            _lastCombatLastTime = DateTime.MinValue;
-            _lastCombatGapSeconds = 0;
-            _lastCombatEntries.Clear();
             _currentLogFileName = "No log file";
 
             // Initial file check on startup
@@ -145,13 +95,6 @@ namespace TNL_DPS_Meter
             });
         }
 
-        private void InitializeCombatTracking()
-        {
-            _combatStartTime = DateTime.Now;
-            _currentCombatDamage = 0;
-            _totalDamage = 0;
-            _isInCombat = false;
-        }
 
         private void UpdateTimer_Tick(object? sender, EventArgs e)
         {
@@ -184,13 +127,15 @@ namespace TNL_DPS_Meter
         private void UpdateDPSDataFromCurrentFile()
         {
             // Use current file found earlier
-            if (string.IsNullOrEmpty(_currentLogFilePath) || !File.Exists(_currentLogFilePath))
+            if (string.IsNullOrEmpty(_currentLogFilePath) || !_fileMonitorService.FileExists(_currentLogFilePath))
             {
                 return;
             }
 
             // Read data from current file
-            var combatData = ParseCombatLog(_currentLogFilePath);
+            var combatData = _logParserService.ParseCombatLog(_currentLogFilePath);
+            if (combatData == null)
+                return;
 
             // Check if there are new log entries
             bool hasNewActivity = false;
@@ -203,125 +148,60 @@ namespace TNL_DPS_Meter
             // Update general data only if there is new activity
             if (hasNewActivity)
             {
-                _totalDamage = combatData.TotalDamage;
-
                 // Save first entry time and gaps for Overall DPS
-            if (_firstLogEntryTime == DateTime.MinValue && combatData.FirstActionTime != DateTime.MaxValue)
-            {
-                _firstLogEntryTime = combatData.FirstActionTime;
-            }
-            _overallGapSeconds = combatData.OverallGapSeconds;
-
-            // Save data for Last Combat
-            if (combatData.LastCombatDamage > 0)
-            {
-                // Save previous combat session to history before updating
-                SaveCombatSessionToHistory();
-
-                // Update combo box immediately to show new historical tab
-                UpdateCombatHistoryComboBox();
-
-                // Flash animation when new tab is created
-                if (_combatHistory.Count > 0) // Only flash if we actually added a new tab
+                if (_firstLogEntryTime == DateTime.MinValue && combatData.FirstActionTime != DateTime.MaxValue)
                 {
-                    FlashWindow();
+                    _firstLogEntryTime = combatData.FirstActionTime;
                 }
+                _overallGapSeconds = combatData.OverallGapSeconds;
 
-                // Update current Last Combat data
-                _lastCombatDamage = combatData.LastCombatDamage;
-                _lastCombatFirstTime = combatData.LastCombatFirstTime;
-                _lastCombatLastTime = combatData.LastCombatLastTime;
-                _lastCombatGapSeconds = CalculateLastCombatGaps(combatData);
-                _lastCombatEntries = new List<CombatEntry>(combatData.LastCombatEntries);
+                // Update tracker with new data
+                _combatTrackerService.UpdateFromCombatData(combatData, DateTime.Now);
 
-                // Update UI to show new Last Combat data (only if Last Combat is selected)
-                if (_currentView == "Last Combat")
+                // Handle Last Combat updates
+                if (combatData.LastCombatDamage > 0)
                 {
-                    ShowLastCombat();
-                }
-            }
-            }
+                    // Update combo box immediately to show new historical tab
+                    UpdateCombatHistoryComboBox();
 
-            // Determine if we are in combat
-            var timeSinceLastEntry = DateTime.Now - _lastLogEntryTime;
-            var wasInCombat = _isInCombat;
-            _isInCombat = timeSinceLastEntry.TotalSeconds < 8;
+                    // Flash animation when new tab is created
+                    if (_combatTrackerService.CombatHistory.Count > 0)
+                    {
+                        FlashWindow();
+                    }
 
-            // Current Combat logic: new combat starts with new activity after pause > 8 sec
-            if (hasNewActivity)
-            {
-                if (!wasInCombat && timeSinceLastEntry.TotalSeconds >= 8)
-                {
-                    // New combat started after pause >= 8 seconds
-                    _combatStartTime = DateTime.Now;
-                    _currentCombatDamage = 0;
-                }
-
-                // Update current combat damage
-                if (_isInCombat || hasNewActivity)
-                {
-                    _currentCombatDamage = combatData.TotalDamage - (_totalDamage - combatData.TotalDamage);
-                }
-            }
-            else if (!_isInCombat)
-            {
-                // Combat ended, reset current combat damage
-                _currentCombatDamage = 0;
-            }
-
-            // Calculate DPS
-            double lastCombatDps = 0;
-            double overallDps = 0;
-
-            // Last Combat DPS - from saved new data minus gaps
-            if (_lastCombatDamage > 0 &&
-                _lastCombatFirstTime != DateTime.MinValue &&
-                _lastCombatLastTime != DateTime.MinValue)
-            {
-                var lastCombatDuration = _lastCombatLastTime - _lastCombatFirstTime;
-                var activeTimeSeconds = lastCombatDuration.TotalSeconds - _lastCombatGapSeconds;
-                if (activeTimeSeconds > 0)
-                {
-                    lastCombatDps = _lastCombatDamage / activeTimeSeconds;
+                    // Update UI to show new Last Combat data (only if Last Combat is selected)
+                    if (_currentView == Constants.ViewNames.LastCombat)
+                    {
+                        ShowLastCombat();
+                    }
                 }
             }
 
-            // Overall DPS - from first to last record minus gaps > 10s
-            if (_totalDamage > 0 && _firstLogEntryTime != DateTime.MinValue && combatData.LastActionTime != DateTime.MinValue)
-            {
-                var totalDuration = combatData.LastActionTime - _firstLogEntryTime;
-                var activeTimeSeconds = totalDuration.TotalSeconds - _overallGapSeconds;
-                if (activeTimeSeconds > 0)
-                {
-                    overallDps = _totalDamage / activeTimeSeconds;
-                }
-            }
+            // Get display data from services
+            var lastCombatData = _combatTrackerService.GetLastCombatDisplayData();
+            var overallData = _combatTrackerService.GetOverallDisplayData(
+                _firstLogEntryTime, combatData.LastActionTime, _overallGapSeconds);
 
             // Update UI only for currently selected view
             Dispatcher.Invoke(() =>
             {
-                if (_currentView == "Last Combat")
+                if (_currentView == Constants.ViewNames.LastCombat)
                 {
                     // Update Last Combat display
-                    CurrentCombatText.Text = $"{FormatNumber(_lastCombatDamage)} | {FormatDps(lastCombatDps)}";
-                    if (_lastCombatFirstTime != DateTime.MinValue && _lastCombatLastTime != DateTime.MinValue)
+                    CurrentCombatText.Text = $"{_calculatorService.FormatNumber(lastCombatData.damage)} | {_calculatorService.FormatDps(lastCombatData.dps)}";
+                    if (lastCombatData.duration > TimeSpan.Zero)
                     {
-                        var combatTime = _lastCombatLastTime - _lastCombatFirstTime;
-                        var activeTime = combatTime.TotalSeconds - _lastCombatGapSeconds;
-                        var timeSpan = TimeSpan.FromSeconds(activeTime);
-                        LastCombatTimeText.Text = FormatTimeSpan(timeSpan);
+                        LastCombatTimeText.Text = _calculatorService.FormatTimeSpan(lastCombatData.duration);
                     }
                 }
-                else if (_currentView == "Overall Damage")
+                else if (_currentView == Constants.ViewNames.OverallDamage)
                 {
                     // Update Overall Damage display
-                    OverallDamageText.Text = $"{FormatNumber(_totalDamage)} | {FormatDps(overallDps)}";
-                    if (_firstLogEntryTime != DateTime.MinValue && combatData.LastActionTime != DateTime.MinValue)
+                    OverallDamageText.Text = $"{_calculatorService.FormatNumber(overallData.damage)} | {_calculatorService.FormatDps(overallData.dps)}";
+                    if (overallData.duration > TimeSpan.Zero)
                     {
-                        var totalTime = combatData.LastActionTime - _firstLogEntryTime;
-                        var activeTime = totalTime.TotalSeconds - _overallGapSeconds;
-                        var timeSpan = TimeSpan.FromSeconds(activeTime);
-                        OverallTimeText.Text = FormatTimeSpan(timeSpan);
+                        OverallTimeText.Text = _calculatorService.FormatTimeSpan(overallData.duration);
                     }
                 }
                 // Historical combat views don't update automatically - they show fixed data
@@ -332,36 +212,30 @@ namespace TNL_DPS_Meter
 
         private void CheckForNewLogFile()
         {
-            var latestFile = GetLatestCombatLogFile();
+            var latestFile = _fileMonitorService.GetLatestCombatLogFile();
             if (latestFile != null && latestFile != _currentLogFilePath)
             {
                 // New file found
                 _currentLogFilePath = latestFile;
-                _currentLogFileName = Path.GetFileName(latestFile);
+                _currentLogFileName = System.IO.Path.GetFileName(latestFile);
 
                 // Reset data when switching files
-                InitializeCombatTracking();
-                _overallStartTime = DateTime.MinValue;
+                _combatTrackerService.Initialize();
                 _lastLogEntryTime = DateTime.MinValue;
                 _firstLogEntryTime = DateTime.MinValue;
                 _overallGapSeconds = 0;
                 _lastProcessedLineCount = 0;
-                _lastCombatDamage = 0;
-                _lastCombatFirstTime = DateTime.MinValue;
-                _lastCombatLastTime = DateTime.MinValue;
-                _lastCombatGapSeconds = 0;
-                _lastCombatEntries.Clear();
 
                 // Clear combat history when switching to new log file
-                _combatHistory.Clear();
-                _currentView = "Last Combat";
+                _combatTrackerService.ClearHistory();
+                _currentView = Constants.ViewNames.LastCombat;
 
                 // Update ComboBox to show only Last Combat and Overall Damage
                 UpdateCombatHistoryComboBox();
 
                 // Immediately update UI for Last Combat and Overall Damage
-            Dispatcher.Invoke(() =>
-            {
+                Dispatcher.Invoke(() =>
+                {
                     CurrentCombatText.Text = "0 | 0.0";
                     LastCombatTimeText.Text = "0:000";
                     OverallDamageText.Text = "0 | 0.0";
@@ -376,207 +250,7 @@ namespace TNL_DPS_Meter
             }
         }
 
-        private string? GetLatestCombatLogFile()
-        {
-            try
-            {
-                if (!Directory.Exists(_combatLogPath))
-                    return null;
 
-                var logFiles = Directory.GetFiles(_combatLogPath, "*.txt")
-                    .OrderByDescending(f => File.GetLastWriteTime(f))
-                    .ToArray();
-
-                return logFiles.FirstOrDefault();
-            }
-            catch
-            {
-                return null;
-            }
-        }
-
-        private CombatData ParseCombatLog(string filePath)
-        {
-            var combatData = new CombatData
-            {
-                StartTime = DateTime.Now,
-                LastActionTime = DateTime.MinValue,
-                FirstActionTime = DateTime.MaxValue,
-                OverallGapSeconds = 0,
-                TotalDamage = 0
-            };
-
-            try
-            {
-                // Explicitly open file for read-only access
-                using (var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
-                using (var streamReader = new StreamReader(fileStream))
-                {
-                    string content = streamReader.ReadToEnd();
-                    combatData.StartTime = File.GetCreationTime(filePath);
-
-                    // Parse Throne and Liberty CSV format (CombatLogVersion,4)
-                    ParseCombatLogCSV(content, combatData);
-                }
-            }
-            catch (IOException ex)
-            {
-                // Special handling for cases when file is locked by another process
-                Console.WriteLine($"File {filePath} is locked by another process: {ex.Message}");
-                // Use previous data or demo data
-                combatData.TotalDamage = new Random().Next(10000, 100000);
-                combatData.LastActionTime = DateTime.Now.AddSeconds(-new Random().Next(0, 10));
-            }
-            catch (Exception ex)
-            {
-                // General file reading error handling
-                Console.WriteLine($"Error reading combat log {filePath}: {ex.Message}");
-                combatData.TotalDamage = new Random().Next(10000, 100000);
-                combatData.LastActionTime = DateTime.Now.AddSeconds(-new Random().Next(0, 10));
-            }
-
-            return combatData;
-        }
-
-        private void ParseCombatLogCSV(string content, CombatData combatData)
-        {
-            var lines = content.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
-            int currentLineIndex = 0;
-
-            foreach (var line in lines)
-            {
-                // Skip headers and empty lines
-                if (string.IsNullOrWhiteSpace(line) || line.StartsWith("CombatLogVersion"))
-                {
-                    currentLineIndex++;
-                    continue;
-                }
-
-                // Parse Throne and Liberty CSV format: CombatLogVersion,4
-                // {Date},DamageDone,{AbilityName},{ServerTick},{DamageDoneByAbilityHit},{isCrit},{isHeavy},{calculationDescriptor},{playerName},{targetName}
-                var parts = line.Split(',');
-                if (parts.Length >= 5 && parts[1] == "DamageDone")
-                {
-                    try
-                    {
-                        // Parse damage (5th element, index 4 = DamageDoneByAbilityHit)
-                        if (long.TryParse(parts[4], out long damage))
-                        {
-                            combatData.TotalDamage += damage;
-
-                            // Parse timestamp (1st element, index 0)
-                            // Format: YYYYMMDD-HH:MM:SS:MS
-                            var timestampStr = parts[0];
-                            if (DateTime.TryParseExact(timestampStr,
-                                new[] { "yyyyMMdd-HH:mm:ss:fff", "yyyyMMdd-HH:mm:ss" },
-                                System.Globalization.CultureInfo.InvariantCulture,
-                                System.Globalization.DateTimeStyles.None,
-                                out DateTime timestamp))
-                            {
-                                // Parse additional fields
-                                string abilityName = parts.Length > 2 ? parts[2] : "";
-                                bool isCrit = parts.Length > 5 && parts[5] == "1";
-                                bool isHeavy = parts.Length > 6 && parts[6] == "1";
-                                string calculationDescriptor = parts.Length > 7 ? parts[7] : "";
-                                string playerName = parts.Length > 8 ? parts[8] : "";
-                                string targetName = parts.Length > 9 ? parts[9] : "";
-
-                                var entry = new CombatEntry
-                                {
-                                    Timestamp = timestamp,
-                                    Damage = damage,
-                                    IsCrit = isCrit,
-                                    IsHeavy = isHeavy,
-                                    AbilityName = abilityName,
-                                    CalculationDescriptor = calculationDescriptor,
-                                    PlayerName = playerName,
-                                    TargetName = targetName
-                                };
-
-                                combatData.CombatEntries.Add(entry);
-                                combatData.ActionTimestamps.Add(timestamp);
-
-                                if (timestamp > combatData.LastActionTime)
-                                {
-                                    combatData.LastActionTime = timestamp;
-                                }
-                                if (timestamp < combatData.FirstActionTime)
-                                {
-                                    combatData.FirstActionTime = timestamp;
-                                }
-
-                                // Calculate statistics for Last Combat (new data)
-                                if (currentLineIndex >= _lastProcessedLineCount)
-                                {
-                                    combatData.LastCombatDamage += damage;
-                                    combatData.LastCombatEntries.Add(entry);
-
-                                    if (combatData.LastCombatFirstTime == DateTime.MinValue)
-                                    {
-                                        combatData.LastCombatFirstTime = timestamp;
-                                    }
-                                    combatData.LastCombatLastTime = timestamp;
-                                }
-                            }
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"Error parsing damage line '{line}': {ex.Message}");
-                    }
-                }
-                currentLineIndex++;
-            }
-
-            // Update number of processed lines
-            _lastProcessedLineCount = currentLineIndex;
-
-            // Calculate gaps between records (pauses > 10 seconds)
-            CalculateGaps(combatData);
-        }
-
-        private void CalculateGaps(CombatData combatData)
-        {
-            if (combatData.ActionTimestamps.Count < 2)
-                return;
-
-            // Sort timestamps in case they are not in chronological order
-            combatData.ActionTimestamps.Sort();
-
-            for (int i = 1; i < combatData.ActionTimestamps.Count; i++)
-            {
-                var timeDiff = combatData.ActionTimestamps[i] - combatData.ActionTimestamps[i - 1];
-                if (timeDiff.TotalSeconds > 10)
-                {
-                    combatData.OverallGapSeconds += timeDiff.TotalSeconds;
-                }
-            }
-        }
-
-        private double CalculateLastCombatGaps(CombatData combatData)
-        {
-            double lastCombatGaps = 0;
-
-            // Find records that belong to Last Combat (within time range)
-            var lastCombatTimestamps = combatData.ActionTimestamps
-                .Where(t => t >= combatData.LastCombatFirstTime && t <= combatData.LastCombatLastTime)
-                .OrderBy(t => t)
-                .ToList();
-
-            if (lastCombatTimestamps.Count < 2)
-                return 0;
-
-            for (int i = 1; i < lastCombatTimestamps.Count; i++)
-            {
-                var timeDiff = lastCombatTimestamps[i] - lastCombatTimestamps[i - 1];
-                if (timeDiff.TotalSeconds > 10)
-                {
-                    lastCombatGaps += timeDiff.TotalSeconds;
-                }
-            }
-
-            return lastCombatGaps;
-        }
 
 
         private void CloseButton_Click(object sender, RoutedEventArgs e)
@@ -600,7 +274,7 @@ namespace TNL_DPS_Meter
             FileInfoContainer.Visibility = Visibility.Visible;
 
             // Show damage breakdown button only if not in Overall Damage view
-            if (_currentView != "Overall Damage")
+            if (_currentView != Constants.ViewNames.OverallDamage)
             {
                 DamageBreakdownButton.Visibility = Visibility.Visible;
             }
@@ -626,21 +300,21 @@ namespace TNL_DPS_Meter
             // Check that UI elements are initialized
             if (LastCombatView == null || OverallDamageView == null) return;
 
-            if (selectedView.Contains("Last Combat"))
+            if (selectedView.Contains(Constants.ViewNames.LastCombat))
             {
-                _currentView = "Last Combat";
+                _currentView = Constants.ViewNames.LastCombat;
                 ShowLastCombat();
             }
-            else if (selectedView.Contains("Overall Damage"))
+            else if (selectedView.Contains(Constants.ViewNames.OverallDamage))
             {
-                _currentView = "Overall Damage";
+                _currentView = Constants.ViewNames.OverallDamage;
                 ShowOverallDamage();
             }
             else
             {
                 // Show historical combat data
                 _currentView = selectedView;
-                var session = _combatHistory.FirstOrDefault(s => s.TargetName == selectedView);
+                var session = _combatTrackerService.GetSessionByTargetName(selectedView);
                 if (session != null)
                 {
                     ShowHistoricalCombat(session);
@@ -653,27 +327,15 @@ namespace TNL_DPS_Meter
             LastCombatView.Visibility = Visibility.Visible;
             OverallDamageView.Visibility = Visibility.Collapsed;
 
-            // Calculate DPS for current Last Combat
-            double lastCombatDps = 0;
-            if (_lastCombatDamage > 0 && _lastCombatFirstTime != DateTime.MinValue && _lastCombatLastTime != DateTime.MinValue)
-            {
-                var duration = _lastCombatLastTime - _lastCombatFirstTime;
-                var activeTimeSeconds = duration.TotalSeconds - _lastCombatGapSeconds;
-                if (activeTimeSeconds > 0)
-                {
-                    lastCombatDps = _lastCombatDamage / activeTimeSeconds;
-                }
-            }
+            var lastCombatData = _combatTrackerService.GetLastCombatDisplayData();
 
             // Update display with current Last Combat data
             Dispatcher.Invoke(() =>
             {
-                CurrentCombatText.Text = $"{FormatNumber(_lastCombatDamage)} | {FormatDps(lastCombatDps)}";
-                if (_lastCombatFirstTime != DateTime.MinValue && _lastCombatLastTime != DateTime.MinValue)
+                CurrentCombatText.Text = $"{_calculatorService.FormatNumber(lastCombatData.damage)} | {_calculatorService.FormatDps(lastCombatData.dps)}";
+                if (lastCombatData.duration > TimeSpan.Zero)
                 {
-                    var activeTime = (_lastCombatLastTime - _lastCombatFirstTime).TotalSeconds - _lastCombatGapSeconds;
-                    var timeSpan = TimeSpan.FromSeconds(activeTime);
-                    LastCombatTimeText.Text = FormatTimeSpan(timeSpan);
+                    LastCombatTimeText.Text = _calculatorService.FormatTimeSpan(lastCombatData.duration);
                 }
             });
         }
@@ -682,6 +344,18 @@ namespace TNL_DPS_Meter
         {
             LastCombatView.Visibility = Visibility.Collapsed;
             OverallDamageView.Visibility = Visibility.Visible;
+
+            var overallData = _combatTrackerService.GetOverallDisplayData(
+                _firstLogEntryTime, DateTime.Now, _overallGapSeconds);
+
+            Dispatcher.Invoke(() =>
+            {
+                OverallDamageText.Text = $"{_calculatorService.FormatNumber(overallData.damage)} | {_calculatorService.FormatDps(overallData.dps)}";
+                if (overallData.duration > TimeSpan.Zero)
+                {
+                    OverallTimeText.Text = _calculatorService.FormatTimeSpan(overallData.duration);
+                }
+            });
         }
 
         private void ShowHistoricalCombat(CombatSession session)
@@ -692,72 +366,16 @@ namespace TNL_DPS_Meter
             LastCombatView.Visibility = Visibility.Visible;
             OverallDamageView.Visibility = Visibility.Collapsed;
 
-            // Calculate DPS for historical session (same logic as ShowLastCombat)
-            double dps = 0;
-            var duration = session.CombatDuration;
-            var activeTimeSeconds = duration.TotalSeconds - session.GapSeconds;
-            if (activeTimeSeconds > 0)
-            {
-                dps = session.Damage / activeTimeSeconds;
-            }
+            double dps = _calculatorService.CalculateDps(session.Damage, session.StartTime, session.EndTime, session.GapSeconds);
 
             Dispatcher.Invoke(() =>
             {
-                CurrentCombatText.Text = $"{FormatNumber(session.Damage)} | {FormatDps(dps)}";
-                LastCombatTimeText.Text = FormatTimeSpan(TimeSpan.FromSeconds(activeTimeSeconds));
+                CurrentCombatText.Text = $"{_calculatorService.FormatNumber(session.Damage)} | {_calculatorService.FormatDps(dps)}";
+                LastCombatTimeText.Text = _calculatorService.FormatTimeSpan(session.CombatDuration - TimeSpan.FromSeconds(session.GapSeconds));
             });
         }
 
 
-        private void SaveCombatSessionToHistory()
-        {
-            if (_lastCombatDamage > 0 && _lastCombatFirstTime != DateTime.MinValue && _lastCombatEntries.Count > 0)
-            {
-                // Check if we already have a session with the same damage and start time (prevent duplicates)
-                if (_combatHistory.Any(s => s.Damage == _lastCombatDamage && s.StartTime == _lastCombatFirstTime))
-                {
-                    return; // Skip creating duplicate session
-                }
-
-                // Find most frequent target name
-                var targetGroups = _lastCombatEntries
-                    .GroupBy(e => e.TargetName)
-                    .OrderByDescending(g => g.Count())
-                    .ToList();
-
-                string mostFrequentTarget = targetGroups.FirstOrDefault()?.Key ?? "Unknown";
-
-                // Find the highest number used for this target name
-                var existingNumbers = _combatHistory
-                    .Where(s => s.TargetName.StartsWith(mostFrequentTarget + " ("))
-                    .Select(s => {
-                        var match = System.Text.RegularExpressions.Regex.Match(s.TargetName, $@"^{System.Text.RegularExpressions.Regex.Escape(mostFrequentTarget)}\s*\((\d+)\)$");
-                        return match.Success ? int.Parse(match.Groups[1].Value) : 0;
-                    })
-                    .ToList();
-
-                int nextNumber = existingNumbers.Count > 0 ? existingNumbers.Max() + 1 : 1;
-                string sessionName = $"{mostFrequentTarget} ({nextNumber})";
-
-                var session = new CombatSession
-                {
-                    TargetName = sessionName,
-                    Damage = _lastCombatDamage,
-                    StartTime = _lastCombatFirstTime,
-                    EndTime = _lastCombatLastTime,
-                    GapSeconds = _lastCombatGapSeconds,
-                    Entries = new List<CombatEntry>(_lastCombatEntries)
-                };
-
-                _combatHistory.Insert(0, session); // Add to beginning
-
-                // Keep only last 10 sessions to avoid memory issues
-                if (_combatHistory.Count > 10)
-                {
-                    _combatHistory = _combatHistory.Take(10).ToList();
-                }
-            }
-        }
 
         private void UpdateCombatHistoryComboBox()
         {
@@ -767,18 +385,18 @@ namespace TNL_DPS_Meter
             ViewSelector.Items.Clear();
 
             // Add Last Combat first
-            var lastCombatItem = new ComboBoxItem { Content = "Last Combat" };
+            var lastCombatItem = new ComboBoxItem { Content = Constants.ViewNames.LastCombat };
             ViewSelector.Items.Add(lastCombatItem);
 
             // Add combat history items (they already have numbering in their names)
-            foreach (var session in _combatHistory)
+            foreach (var session in _combatTrackerService.CombatHistory)
             {
                 var item = new ComboBoxItem { Content = session.TargetName };
                 ViewSelector.Items.Add(item);
             }
 
             // Add Overall Damage last (always at the end)
-            var overallDamageItem = new ComboBoxItem { Content = "Overall Damage" };
+            var overallDamageItem = new ComboBoxItem { Content = Constants.ViewNames.OverallDamage };
             ViewSelector.Items.Add(overallDamageItem);
 
             // Set default selection to "Last Combat" if nothing is selected
@@ -799,9 +417,9 @@ namespace TNL_DPS_Meter
             // Change to purple
             border.Background = (SolidColorBrush)this.FindResource("FlashBrush");
 
-            // Return to original color after 150ms
+            // Return to original color after specified duration
             var timer = new DispatcherTimer();
-            timer.Interval = TimeSpan.FromMilliseconds(150);
+            timer.Interval = TimeSpan.FromMilliseconds(Constants.Timers.FlashAnimationDurationMs);
             timer.Tick += (s, e) =>
             {
                 border.Background = originalBrush;
@@ -820,12 +438,12 @@ namespace TNL_DPS_Meter
                 // Get appropriate combat entries based on current view
                 List<CombatEntry> entriesToShow = new List<CombatEntry>();
 
-                if (_currentView == "Last Combat")
+                if (_currentView == Constants.ViewNames.LastCombat)
                 {
                     // Show current last combat entries
-                    entriesToShow = new List<CombatEntry>(_lastCombatEntries);
+                    entriesToShow = new List<CombatEntry>(_combatTrackerService.LastCombatEntries);
                 }
-                else if (_currentView == "Overall Damage")
+                else if (_currentView == Constants.ViewNames.OverallDamage)
                 {
                     // For Overall Damage, we don't show breakdown (as requested)
                     MessageBox.Show("Damage breakdown is not available for overall statistics", "Information",
@@ -835,7 +453,7 @@ namespace TNL_DPS_Meter
                 else
                 {
                     // Show historical combat entries
-                    var session = _combatHistory.FirstOrDefault(s => s.TargetName == _currentView);
+                    var session = _combatTrackerService.GetSessionByTargetName(_currentView);
                     if (session != null)
                     {
                         entriesToShow = new List<CombatEntry>(session.Entries);
@@ -869,45 +487,6 @@ namespace TNL_DPS_Meter
             }
         }
 
-        public class CombatEntry
-        {
-            public DateTime Timestamp { get; set; }
-            public long Damage { get; set; }
-            public bool IsCrit { get; set; }
-            public bool IsHeavy { get; set; }
-            public string AbilityName { get; set; } = "";
-            public string CalculationDescriptor { get; set; } = "";
-            public string PlayerName { get; set; } = "";
-            public string TargetName { get; set; } = "";
-        }
-
-        private class CombatSession
-        {
-            public string TargetName { get; set; } = "";
-            public long Damage { get; set; }
-            public DateTime StartTime { get; set; }
-            public DateTime EndTime { get; set; }
-            public TimeSpan CombatDuration => EndTime - StartTime;
-            public double GapSeconds { get; set; }
-            public List<CombatEntry> Entries { get; set; } = new List<CombatEntry>();
-        }
-
-        private class CombatData
-        {
-            public DateTime StartTime { get; set; }
-            public DateTime LastActionTime { get; set; }
-            public DateTime FirstActionTime { get; set; }
-            public List<DateTime> ActionTimestamps { get; set; } = new List<DateTime>();
-            public List<CombatEntry> CombatEntries { get; set; } = new List<CombatEntry>();
-            public double OverallGapSeconds { get; set; }
-            public long TotalDamage { get; set; }
-
-            // For Last Combat - statistics for new data
-            public long LastCombatDamage { get; set; }
-            public DateTime LastCombatFirstTime { get; set; }
-            public DateTime LastCombatLastTime { get; set; }
-            public List<CombatEntry> LastCombatEntries { get; set; } = new List<CombatEntry>();
-        }
 
     }
 }
