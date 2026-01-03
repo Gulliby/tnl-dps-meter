@@ -138,6 +138,7 @@
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
+
             <!-- Tab Headers (hidden when mouse leaves) -->
             <Border x:Name="TabHeaders" Grid.Row="0"
                     Background="{StaticResource TabBackgroundBrush}"
@@ -221,13 +222,39 @@
                     Background="{StaticResource TabBackgroundBrush}"
                     Height="25"
                     CornerRadius="0,0,5,5">
-                <TextBlock x:Name="FileInfoText"
-                          Text="No log file"
-                          FontSize="9"
-                          Foreground="#FFAAAAAA"
-                          HorizontalAlignment="Center"
-                          VerticalAlignment="Center"
-                          Margin="5"/>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Damage Breakdown Button (bottom left corner, hidden until mouse hover) -->
+                    <Button x:Name="DamageBreakdownButton"
+                            Grid.Column="0"
+                            Content="..."
+                            Background="Transparent"
+                            Foreground="{StaticResource TextBrush}"
+                            BorderThickness="0"
+                            Width="25"
+                            Height="25"
+                            Click="DamageBreakdownButton_Click"
+                            FontSize="12"
+                            FontWeight="Bold"
+                            Margin="5,0,0,0"
+                            VerticalAlignment="Center"
+                            HorizontalAlignment="Left"
+                            Visibility="Collapsed"
+                            ToolTip="Show damage breakdown"/>
+
+                    <TextBlock x:Name="FileInfoText"
+                              Grid.Column="1"
+                              Text="No log file"
+                              FontSize="9"
+                              Foreground="#FFAAAAAA"
+                              HorizontalAlignment="Center"
+                              VerticalAlignment="Center"
+                              Margin="5"/>
+                </Grid>
             </Border>
         </Grid>
     </Border>

@@ -84,6 +84,13 @@ namespace TNL_DPS_Meter
             return string.Join(":", parts);
         }
 
+        [STAThread]
+        public static void Main()
+        {
+            var app = new Application();
+            app.Run(new MainWindow());
+        }
+
         public MainWindow()
         {
             InitializeComponent();
@@ -467,6 +474,7 @@ namespace TNL_DPS_Meter
                                 out DateTime timestamp))
                             {
                                 // Parse additional fields
+                                string abilityName = parts.Length > 2 ? parts[2] : "";
                                 bool isCrit = parts.Length > 5 && parts[5] == "1";
                                 bool isHeavy = parts.Length > 6 && parts[6] == "1";
                                 string calculationDescriptor = parts.Length > 7 ? parts[7] : "";
@@ -479,6 +487,7 @@ namespace TNL_DPS_Meter
                                     Damage = damage,
                                     IsCrit = isCrit,
                                     IsHeavy = isHeavy,
+                                    AbilityName = abilityName,
                                     CalculationDescriptor = calculationDescriptor,
                                     PlayerName = playerName,
                                     TargetName = targetName
@@ -589,6 +598,12 @@ namespace TNL_DPS_Meter
             // Show tab headers and file info when mouse enters
             TabHeaders.Visibility = Visibility.Visible;
             FileInfoContainer.Visibility = Visibility.Visible;
+
+            // Show damage breakdown button only if not in Overall Damage view
+            if (_currentView != "Overall Damage")
+            {
+                DamageBreakdownButton.Visibility = Visibility.Visible;
+            }
         }
 
         private void Window_MouseLeave(object sender, MouseEventArgs e)
@@ -596,6 +611,7 @@ namespace TNL_DPS_Meter
             // Hide tab headers and file info when mouse leaves
             TabHeaders.Visibility = Visibility.Collapsed;
             FileInfoContainer.Visibility = Visibility.Collapsed;
+            DamageBreakdownButton.Visibility = Visibility.Collapsed;
         }
 
         private void ViewSelector_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -619,9 +635,9 @@ namespace TNL_DPS_Meter
             {
                 _currentView = "Overall Damage";
                 ShowOverallDamage();
-                                    }
-                                    else
-                                    {
+            }
+            else
+            {
                 // Show historical combat data
                 _currentView = selectedView;
                 var session = _combatHistory.FirstOrDefault(s => s.TargetName == selectedView);
@@ -794,12 +810,72 @@ namespace TNL_DPS_Meter
             timer.Start();
         }
 
-        private class CombatEntry
+        private void DamageBreakdownButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var breakdownWindow = new DamageBreakdownWindow();
+                breakdownWindow.Owner = this;
+
+                // Get appropriate combat entries based on current view
+                List<CombatEntry> entriesToShow = new List<CombatEntry>();
+
+                if (_currentView == "Last Combat")
+                {
+                    // Show current last combat entries
+                    entriesToShow = new List<CombatEntry>(_lastCombatEntries);
+                }
+                else if (_currentView == "Overall Damage")
+                {
+                    // For Overall Damage, we don't show breakdown (as requested)
+                    MessageBox.Show("Damage breakdown is not available for overall statistics", "Information",
+                        MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+                else
+                {
+                    // Show historical combat entries
+                    var session = _combatHistory.FirstOrDefault(s => s.TargetName == _currentView);
+                    if (session != null)
+                    {
+                        entriesToShow = new List<CombatEntry>(session.Entries);
+                    }
+                }
+
+                System.Diagnostics.Debug.WriteLine($"DamageBreakdown: Current view = {_currentView}, Entries count: {entriesToShow.Count}");
+
+                if (entriesToShow.Count > 0)
+                {
+                    breakdownWindow.SetDamageData(entriesToShow);
+
+                    // Show window and ensure it gets focus
+                    breakdownWindow.Show();
+
+                    // Force activation and focus
+                    breakdownWindow.Activate();
+                    breakdownWindow.Topmost = true;
+                    breakdownWindow.Focus();
+                }
+                else
+                {
+                    MessageBox.Show("No data to display", "Information",
+                        MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error opening damage breakdown window: {ex.Message}",
+                    "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        public class CombatEntry
         {
             public DateTime Timestamp { get; set; }
             public long Damage { get; set; }
             public bool IsCrit { get; set; }
             public bool IsHeavy { get; set; }
+            public string AbilityName { get; set; } = "";
             public string CalculationDescriptor { get; set; } = "";
             public string PlayerName { get; set; } = "";
             public string TargetName { get; set; } = "";
